@@ -89,9 +89,18 @@ export async function recognizeText(image, lang = 'chi_sim+eng', onProgress = nu
   const worker = await createWorker(lang)
   
   try {
+    // 添加超时处理（5分钟超时）
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => {
+        reject(new Error('OCR识别超时（超过5分钟），请尝试处理更小的页面范围'))
+      }, 5 * 60 * 1000) // 5分钟
+    })
+    
     // 注意：不能传递函数给Worker的logger，会导致DataCloneError
     // 我们移除logger，只在页面级别显示进度
-    const { data: { text } } = await worker.recognize(image)
+    const recognizePromise = worker.recognize(image)
+    
+    const { data: { text } } = await Promise.race([recognizePromise, timeoutPromise])
     
     // 恢复原始的console.warn
     console.warn = originalWarn
@@ -107,7 +116,11 @@ export async function recognizeText(image, lang = 'chi_sim+eng', onProgress = nu
     console.error('OCR识别错误:', error)
     throw new Error(`OCR识别失败: ${error.message}`)
   } finally {
-    await worker.terminate()
+    try {
+      await worker.terminate()
+    } catch (e) {
+      console.warn('Worker终止时出错:', e)
+    }
   }
 }
 
@@ -133,12 +146,64 @@ export async function ocrPdfPage(page, scale = 3, lang = 'chi_sim+eng', onProgre
 }
 
 /**
- * OCR文本后处理：修复常见的识别错误
+ * OCR文本后处理：修复常见的识别错误，并过滤页眉和页尾
  * @param {String} text - OCR识别出的原始文本
  * @returns {String} - 修复后的文本
  */
 function postProcessOCRText(text) {
   if (!text) return text
+  
+  // 先按行分割，过滤页眉和页尾
+  const lines = text.split('\n')
+  const filteredLines = []
+  
+  // 页眉和页尾的匹配模式
+  const headerPatterns = [
+    /^第[一二三四五六七八九十\d]+章/,  // 第一章、第二章等
+    /^第[一二三四五六七八九十\d]+节/,  // 第一节等
+    /^[一二三四五六七八九十]+[、\.]/,  // 一、二、等
+  ]
+  
+  const footerPatterns = [
+    /本部分题目解析/,  // 本部分题目解析见下册
+    /题目解析见/,      // 题目解析见
+    /解析见.*页/,      // 解析见第X页
+    /^[①②③④⑤⑥⑦⑧⑨⑩]+/,  // 圆圈数字
+    /^第\s*\d+\s*页/,  // 第X页
+  ]
+  
+  lines.forEach((line, index) => {
+    const trimmedLine = line.trim()
+    if (!trimmedLine) {
+      filteredLines.push(line) // 保留空行
+      return
+    }
+    
+    // 检查是否为页眉（通常在文本开头的前3行）
+    const isHeader = index < 3 && headerPatterns.some(pattern => pattern.test(trimmedLine))
+    
+    // 检查是否为页尾（通常在文本末尾的后3行）
+    // 对于纯数字，只在最后2行且长度很短（1-3位数字）时才认为是页码
+    let isFooter = false
+    if (index >= lines.length - 3) {
+      // 匹配页尾模式
+      isFooter = footerPatterns.some(pattern => pattern.test(trimmedLine))
+      // 如果是纯数字且很短，可能是页码
+      if (!isFooter && /^[0-9]{1,3}$/.test(trimmedLine) && index >= lines.length - 2) {
+        isFooter = true
+      }
+    }
+    
+    // 如果是页眉或页尾，过滤掉
+    if (isHeader || isFooter) {
+      console.log(`[OCR后处理] 过滤页眉/页尾: "${trimmedLine}"`)
+      return
+    }
+    
+    filteredLines.push(line)
+  })
+  
+  text = filteredLines.join('\n')
   
   // 修复分数识别错误：将横杠替换为小数点
   // 例如：1-067 -> 1.067, 1 067 -> 1.067
@@ -184,48 +249,76 @@ export async function ocrPdf(pdf, options = {}) {
       maxPages = null
     } = options
   
-  const totalPages = Math.min(endPage || pdf.numPages, maxPages || pdf.numPages)
+  // 确定实际要处理的页码范围
+  const actualStartPage = Math.max(1, Math.min(startPage, pdf.numPages))
+  const actualEndPage = endPage ? Math.max(actualStartPage, Math.min(endPage, pdf.numPages)) : pdf.numPages
+  const totalPagesToProcess = maxPages ? Math.min(actualEndPage, actualStartPage + maxPages - 1) : actualEndPage
+  const actualTotalPages = actualEndPage - actualStartPage + 1 // 实际要处理的总页数
+  
   let fullText = ''
   
   try {
-    for (let i = startPage; i <= totalPages; i++) {
-      const page = await pdf.getPage(i)
-      
-      if (onProgress) {
-        onProgress({
-          page: i,
-          total: totalPages,
-          status: 'processing',
-          message: `正在处理第 ${i}/${totalPages} 页...`
-        })
-      }
-      
-      const pageText = await ocrPdfPage(page, scale, lang, (progress) => {
+    let processedPages = 0
+    for (let i = actualStartPage; i <= totalPagesToProcess; i++) {
+      try {
+        const page = await pdf.getPage(i)
+        
         if (onProgress) {
-          const overallProgress = (i - 1 + (progress.progress || 0)) / totalPages
           onProgress({
             page: i,
-            total: totalPages,
-            progress: overallProgress,
-            status: 'recognizing',
-            message: `识别第 ${i} 页: ${Math.round((progress.progress || 0) * 100)}%`
+            total: actualTotalPages,
+            status: 'processing',
+            message: `正在处理第 ${i - actualStartPage + 1}/${actualTotalPages} 页（PDF第 ${i} 页）...`
           })
         }
-      })
-      
-      if (pageText && pageText.trim()) {
-        fullText += pageText.trim() + '\n\n'
-      }
-      
-      if (onProgress) {
-        onProgress({
-          page: i,
-          total: totalPages,
-          status: 'completed',
-          message: `第 ${i} 页识别完成`,
-          progress: i / totalPages
+        
+        const pageText = await ocrPdfPage(page, scale, lang, (progress) => {
+          if (onProgress) {
+            const pageProgress = progress.progress || 0
+            const overallProgress = (processedPages + pageProgress) / actualTotalPages
+            onProgress({
+              page: i,
+              total: actualTotalPages,
+              progress: overallProgress,
+              status: 'recognizing',
+              message: `识别第 ${i - actualStartPage + 1}/${actualTotalPages} 页: ${Math.round(pageProgress * 100)}%`
+            })
+          }
         })
+        
+        processedPages++
+        
+        if (pageText && pageText.trim()) {
+          fullText += pageText.trim() + '\n\n'
+        }
+        
+        if (onProgress) {
+          onProgress({
+            page: i,
+            total: actualTotalPages,
+            status: 'completed',
+            message: `第 ${i - actualStartPage + 1}/${actualTotalPages} 页识别完成`,
+            progress: processedPages / actualTotalPages
+          })
+        }
+      } catch (pageError) {
+        console.error(`处理第 ${i} 页时出错:`, pageError)
+        // 继续处理下一页，而不是完全失败
+        if (onProgress) {
+          onProgress({
+            page: i,
+            total: actualTotalPages,
+            status: 'error',
+            message: `第 ${i - actualStartPage + 1} 页处理失败: ${pageError.message}，跳过此页`,
+            progress: processedPages / actualTotalPages
+          })
+        }
+        processedPages++
       }
+    }
+    
+    if (fullText.trim().length === 0) {
+      throw new Error('所有页面OCR识别都失败，未提取到任何文本')
     }
     
     return fullText.trim()
