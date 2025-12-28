@@ -4,6 +4,12 @@
 
 import { createWorker } from 'tesseract.js'
 
+// Tesseract.js v7 会自动从 node_modules 加载 worker 文件
+// 如果遇到网络问题，请检查：
+// 1. 网络连接是否正常
+// 2. 是否有防火墙或代理阻止了 worker 文件加载
+// 3. 浏览器是否支持 Web Workers
+
 /**
  * 将PDF页面转换为图片
  * @param {Object} page - PDF.js页面对象
@@ -86,7 +92,29 @@ export async function recognizeText(image, lang = 'chi_sim+eng', onProgress = nu
     originalWarn(...args)
   }
   
-  const worker = await createWorker(lang)
+  // 创建 worker，配置错误处理
+  // Tesseract.js v7 会自动处理 worker 路径，优先使用本地文件
+  let worker
+  try {
+    // 首先尝试创建 worker（tesseract.js 会自动从 node_modules 加载 worker）
+    worker = await createWorker(lang)
+    console.log('[OCR] Worker 创建成功')
+  } catch (workerError) {
+    console.error('[OCR] Worker 创建失败:', workerError)
+    
+    // 如果失败，可能是网络问题或 CORS 问题
+    // 提供更详细的错误信息
+    let errorMessage = '无法创建 OCR Worker'
+    if (workerError.message && workerError.message.includes('importScripts')) {
+      errorMessage = 'OCR Worker 加载失败：网络连接问题或 CORS 限制。\n\n解决方案：\n1. 检查网络连接\n2. 刷新页面重试\n3. 如果使用 VPN，请尝试关闭或切换节点'
+    } else if (workerError.message && workerError.message.includes('Failed to fetch')) {
+      errorMessage = 'OCR Worker 加载失败：无法从服务器获取文件。\n\n解决方案：\n1. 检查网络连接\n2. 刷新页面重试\n3. 清除浏览器缓存后重试'
+    } else {
+      errorMessage = `无法创建 OCR Worker: ${workerError.message}`
+    }
+    
+    throw new Error(errorMessage)
+  }
   
   try {
     // 添加超时处理（5分钟超时）

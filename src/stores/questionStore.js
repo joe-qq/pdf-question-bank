@@ -537,21 +537,24 @@ export const useQuestionStore = defineStore("question", {
       let unmatchedCount = 0;
 
       // 解析答案格式：支持多种格式
-      // 1. 题号. 答案 (如: 1. A, 1. A, 1、A)
-      // 2. 题号 答案 (如: 1 A, 1A)
-      // 3. 题号：答案 (如: 1：A, 1:A)
-      // 4. 题号答案 (如: 1A, 2B)
-      lines.forEach((line) => {
-        // 尝试匹配各种答案格式
-        const patterns = [
-          /^(\d+)[.、]\s*([A-Z])/i, // 1. A 或 1、A
-          /^(\d+)\s+([A-Z])/i, // 1 A
-          /^(\d+)[：:]\s*([A-Z])/i, // 1：A 或 1:A
-          /^(\d+)([A-Z])/i, // 1A
+      // 优先匹配：【答案】格式（如: 5.【答案】A。、5【答案】A。等）
+      // 然后匹配其他格式：1. A、1 A、1：A、1A 等
+      // 最后匹配确认语句：故正确答案为A。
+
+      // 用于存储当前处理的题号（用于确认语句匹配）
+      let currentQuestionId = null;
+
+      lines.forEach((line, index) => {
+        let matched = false;
+
+        // 优先匹配：【答案】格式（如: 5.【答案】A。、5【答案】A。等）
+        const answerPatterns = [
+          /^(\d+)[.、]?\s*【答案】\s*([A-Z])[。.]?/i, // 5.【答案】A。或 5【答案】A。
+          /^(\d+)[.、]?\s*\[答案\]\s*([A-Z])[。.]?/i, // 5.[答案]A。或 5[答案]A。（英文方括号）
+          /^(\d+)[.、]?\s*答案[:：]\s*([A-Z])[。.]?/i, // 5.答案：A。或 5答案：A。
         ];
 
-        let matched = false;
-        for (const pattern of patterns) {
+        for (const pattern of answerPatterns) {
           const match = line.match(pattern);
           if (match) {
             const questionId = match[1];
@@ -561,20 +564,81 @@ export const useQuestionStore = defineStore("question", {
             const question = this.questions.find((q) => q.id === questionId);
             if (question) {
               question.answer = answer;
+              currentQuestionId = questionId; // 保存当前题号，用于后续确认语句
               matchedCount++;
-              console.log(`✓ 题目 ${questionId} 答案: ${answer}`);
+              console.log(
+                `✓ 题目 ${questionId} 答案: ${answer} (【答案】格式)`
+              );
               matched = true;
               break;
             }
           }
         }
 
+        // 如果未匹配，尝试匹配确认语句（如: 故正确答案为A。、因此正确答案为A。等）
+        if (!matched && currentQuestionId) {
+          const confirmPatterns = [
+            /[故因]此?正确答案为\s*([A-Z])[。.]?/i, // 故正确答案为A。、因此正确答案为A。
+            /正确答案为\s*([A-Z])[。.]?/i, // 正确答案为A。
+            /答案[为是]\s*([A-Z])[。.]?/i, // 答案为A。、答案是A。
+          ];
+
+          for (const pattern of confirmPatterns) {
+            const match = line.match(pattern);
+            if (match) {
+              const answer = match[1].toUpperCase();
+              const question = this.questions.find(
+                (q) => q.id === currentQuestionId
+              );
+              if (question && !question.answer) {
+                // 如果题目还没有答案，使用确认语句中的答案
+                question.answer = answer;
+                matchedCount++;
+                console.log(
+                  `✓ 题目 ${currentQuestionId} 答案: ${answer} (确认语句)`
+                );
+                matched = true;
+                break;
+              }
+            }
+          }
+        }
+
+        // 如果仍未匹配，尝试匹配其他常见格式
         if (!matched) {
-          // 尝试匹配更复杂的格式，如"第1题：A"、"题目1答案：A"等
+          const patterns = [
+            /^(\d+)[.、]\s*([A-Z])/i, // 1. A 或 1、A
+            /^(\d+)\s+([A-Z])/i, // 1 A
+            /^(\d+)[：:]\s*([A-Z])/i, // 1：A 或 1:A
+            /^(\d+)([A-Z])/i, // 1A
+          ];
+
+          for (const pattern of patterns) {
+            const match = line.match(pattern);
+            if (match) {
+              const questionId = match[1];
+              const answer = match[2].toUpperCase();
+
+              // 查找对应的题目
+              const question = this.questions.find((q) => q.id === questionId);
+              if (question) {
+                question.answer = answer;
+                currentQuestionId = questionId;
+                matchedCount++;
+                console.log(`✓ 题目 ${questionId} 答案: ${answer}`);
+                matched = true;
+                break;
+              }
+            }
+          }
+        }
+
+        // 如果仍未匹配，尝试匹配更复杂的格式
+        if (!matched) {
           const complexPatterns = [
-            /第\s*(\d+)\s*[题项][：:]\s*([A-Z])/i,
-            /题目\s*(\d+)[：:]\s*([A-Z])/i,
-            /题\s*(\d+)[：:]\s*([A-Z])/i,
+            /第\s*(\d+)\s*[题项][：:]\s*([A-Z])/i, // 第1题：A
+            /题目\s*(\d+)[：:]\s*([A-Z])/i, // 题目1：A
+            /题\s*(\d+)[：:]\s*([A-Z])/i, // 题1：A
           ];
 
           for (const pattern of complexPatterns) {
@@ -586,11 +650,29 @@ export const useQuestionStore = defineStore("question", {
               const question = this.questions.find((q) => q.id === questionId);
               if (question) {
                 question.answer = answer;
+                currentQuestionId = questionId;
                 matchedCount++;
                 console.log(`✓ 题目 ${questionId} 答案: ${answer} (复杂格式)`);
                 matched = true;
                 break;
               }
+            }
+          }
+        }
+
+        // 如果当前行匹配到新的题号，更新 currentQuestionId
+        // 如果遇到新的题号行（即使未匹配），也更新 currentQuestionId
+        if (!matched) {
+          const newQuestionMatch =
+            line.match(/^(\d+)[.、]?\s*【答案】/i) ||
+            line.match(/^(\d+)[.、]?\s*\[答案\]/i) ||
+            line.match(/^(\d+)[.、]\s*/);
+          if (newQuestionMatch) {
+            const newQuestionId = newQuestionMatch[1];
+            // 如果这个题号存在，更新 currentQuestionId
+            const question = this.questions.find((q) => q.id === newQuestionId);
+            if (question) {
+              currentQuestionId = newQuestionId;
             }
           }
         }
