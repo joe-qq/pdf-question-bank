@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>百化分刷题神器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "微软雅黑", sans-serif;
+        }
+
+        body {
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+
+        /* 核心容器 */
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        /* 背诵表样式 */
+        .recite-table {
+            display: none; /* 默认隐藏 */
+            margin: 20px 0;
+            padding: 15px;
+            background: #fff8e1;
+            border-radius: 8px;
+            border: 1px solid #ffc107;
+        }
+
+        .recite-table img {
+            width: 100%;
+            border-radius: 6px;
+        }
+
+        /* 功能按钮区 */
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .btn {
+            padding: 10px 18px;
+            border: none;
+            border-radius: 6px;
+            background: #2196f3;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .btn:hover {
+            background: #1976d2;
+        }
+
+        .btn-danger {
+            background: #f44336;
+        }
+
+        .btn-danger:hover {
+            background: #d32f2f;
+        }
+
+        .btn-success {
+            background: #4caf50;
+        }
+
+        .btn-success:hover {
+            background: #388e3c;
+        }
+
+        /* 出题区域 */
+        .question-area {
+            margin: 20px 0;
+            padding: 20px;
+            background: #e3f2fd;
+            border-radius: 8px;
+            font-size: 20px;
+            text-align: center;
+        }
+
+        .question-text {
+            margin-bottom: 15px;
+        }
+
+        .answer-input {
+            width: 80px;
+            height: 40px;
+            text-align: center;
+            font-size: 18px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin: 0 5px;
+        }
+
+        /* 计时器样式 */
+        .timer-area {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 15px 0;
+            padding: 10px;
+            background: #ffebee;
+            border-radius: 6px;
+        }
+
+        .timer-display {
+            font-size: 24px;
+            font-weight: bold;
+            color: #f44336;
+        }
+
+        .timer-setting {
+            display: flex;
+            gap: 8px;
+        }
+
+        .timer-input {
+            width: 60px;
+            height: 35px;
+            text-align: center;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        /* 难度梯度设置 */
+        .difficulty-area {
+            margin: 15px 0;
+            padding: 15px;
+            background: #f3e5f5;
+            border-radius: 8px;
+        }
+
+        .difficulty-item {
+            margin: 8px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .difficulty-input {
+            width: 60px;
+            height: 35px;
+            text-align: center;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        /* 结果提示 */
+        .result-tip {
+            margin-top: 15px;
+            font-size: 18px;
+            font-weight: bold;
+            height: 24px;
+        }
+
+        .correct {
+            color: #4caf50;
+        }
+
+        .wrong {
+            color: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2 style="text-align:center; margin-bottom:20px;">百化分U型表刷题训练</h2>
+
+        <!-- 1. 背诵表区域（默认隐藏） -->
+        <div class="btn-group">
+            <button class="btn" id="showTableBtn">📖 回顾知识点（显示U型表）</button>
+        </div>
+        <div class="recite-table" id="reciteTable">
+            <!-- 替换为你的U型表图片地址 -->
+            <img src="../assets/img/aba67176b9e9d8342612987290d62200.jpg" 
+                 alt="百化分U型表">
+        </div>
+
+        <!-- 2. 难度梯度设置 -->
+        <div class="difficulty-area">
+            <h4>📌 难度梯度自定义（单位：秒）</h4>
+            <div class="difficulty-item">
+                <span>简单题时长：</span>
+                <input type="number" class="difficulty-input" id="easyTime" value="15" min="1">
+            </div>
+            <div class="difficulty-item">
+                <span>中等题时长：</span>
+                <input type="number" class="difficulty-input" id="mediumTime" value="20" min="1">
+            </div>
+            <div class="difficulty-item">
+                <span>难题时长：</span>
+                <input type="number" class="difficulty-input" id="hardTime" value="30" min="1">
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-success" id="setDifficultyBtn">确认难度时长</button>
+                <button class="btn" id="chooseDifficultyBtn">选择当前难度</button>
+            </div>
+        </div>
+
+        <!-- 3. 计时器区域 -->
+        <div class="timer-area">
+            <div>⏱️ 剩余时间：</div>
+            <div class="timer-display" id="timerDisplay">20</div>
+            <div class="timer-setting">
+                <input type="number" class="timer-input" id="customTime" value="20" min="1">
+                <button class="btn" id="setTimerBtn">修改时长</button>
+            </div>
+        </div>
+
+        <!-- 4. 出题区域 -->
+        <div class="question-area">
+            <div class="question-text" id="questionText">点击「开始刷题」生成题目</div>
+            <div>
+                <input type="text" class="answer-input" id="answerInput" placeholder="输入答案（如1/3）" disabled>
+                <button class="btn btn-success" id="submitBtn" disabled>提交答案</button>
+            </div>
+            <div class="result-tip" id="resultTip"></div>
+        </div>
+
+        <!-- 5. 核心操作按钮 -->
+        <div class="btn-group">
+            <button class="btn" id="startBtn">▶️ 开始刷题</button>
+            <button class="btn btn-danger" id="stopBtn" disabled>⏹️ 停止刷题</button>
+            <button class="btn" id="nextBtn" disabled>➡️ 下一题</button>
+        </div>
+    </div>
+
+    <script>
+        // ========== 核心数据定义 ==========
+        const percentFractionMap = [
+            { percent: "3.3%", fraction: "1/30" },
+            { percent: "5%", fraction: "1/20" },
+            { percent: "5.3%", fraction: "1/19" },
+            { percent: "5.6%", fraction: "1/18" },
+            { percent: "5.9%", fraction: "1/17" },
+            { percent: "6.25%", fraction: "1/16" },
+            { percent: "6.7%", fraction: "1/15" },
+            { percent: "7.1%", fraction: "1/14" },
+            { percent: "7.7%", fraction: "1/13" },
+            { percent: "8.3%", fraction: "1/12" },
+            { percent: "9.1%", fraction: "1/11" },
+            { percent: "9.5%", fraction: "1/10.5" },
+            { percent: "10%", fraction: "1/10" },
+            { percent: "10.5%", fraction: "1/9.5" },
+            { percent: "11.1%", fraction: "1/9" },
+            { percent: "12.5%", fraction: "1/8" },
+            { percent: "13%", fraction: "1/7.7" },
+            { percent: "14.3%", fraction: "1/7" },
+            { percent: "15%", fraction: "1/6.7" },
+            { percent: "16.7%", fraction: "1/6" },
+            { percent: "17%", fraction: "1/5.9" },
+            { percent: "18%", fraction: "1/5.6" },
+            { percent: "19%", fraction: "1/5.3" },
+            { percent: "20%", fraction: "1/5" },
+            { percent: "25%", fraction: "1/4" },
+            { percent: "33.3%", fraction: "1/3" }
+        ];
+
+        // 全局状态变量
+        let timerInterval = null;    // 计时器定时器
+        let remainingTime = 20;      // 默认剩余时间
+        let baseTime = 20;           // 基准时长（记录自定义/难度设置的时长）
+        let currentQuestion = null;  // 当前题目
+        let isRunning = false;       // 是否正在刷题
+        let difficultyTime = {       // 难度梯度时长
+            easy: 15,
+            medium: 20,
+            hard: 30
+        };
+
+        // ========== DOM元素获取 ==========
+        const reciteTable = document.getElementById("reciteTable");
+        const showTableBtn = document.getElementById("showTableBtn");
+        const startBtn = document.getElementById("startBtn");
+        const stopBtn = document.getElementById("stopBtn");
+        const nextBtn = document.getElementById("nextBtn");
+        const questionText = document.getElementById("questionText");
+        const answerInput = document.getElementById("answerInput");
+        const submitBtn = document.getElementById("submitBtn");
+        const resultTip = document.getElementById("resultTip");
+        const timerDisplay = document.getElementById("timerDisplay");
+        const customTime = document.getElementById("customTime");
+        const setTimerBtn = document.getElementById("setTimerBtn");
+        const easyTime = document.getElementById("easyTime");
+        const mediumTime = document.getElementById("mediumTime");
+        const hardTime = document.getElementById("hardTime");
+        const setDifficultyBtn = document.getElementById("setDifficultyBtn");
+        const chooseDifficultyBtn = document.getElementById("chooseDifficultyBtn");
+
+        // ========== 功能实现 ==========
+        // 1. 显示/隐藏U型背诵表
+        showTableBtn.addEventListener("click", () => {
+            reciteTable.style.display = reciteTable.style.display === "none" ? "block" : "none";
+            showTableBtn.textContent = reciteTable.style.display === "block" 
+                ? "📕 隐藏知识点（收起U型表）" 
+                : "📖 回顾知识点（显示U型表）";
+        });
+
+        // 2. 自定义难度梯度时长
+        setDifficultyBtn.addEventListener("click", () => {
+            difficultyTime = {
+                easy: Number(easyTime.value) || 15,
+                medium: Number(mediumTime.value) || 20,
+                hard: Number(hardTime.value) || 30
+            };
+            alert(`难度时长设置成功！
+简单题：${difficultyTime.easy}秒
+中等题：${difficultyTime.medium}秒
+难题：${difficultyTime.hard}秒`);
+        });
+
+        // 3. 选择当前难度（快速切换时长）
+        chooseDifficultyBtn.addEventListener("click", () => {
+            const difficulty = prompt("请选择当前难度（输入：简单/中等/难）", "中等");
+            switch(difficulty) {
+                case "简单":
+                    baseTime = difficultyTime.easy;
+                    customTime.value = difficultyTime.easy;
+                    break;
+                case "中等":
+                    baseTime = difficultyTime.medium;
+                    customTime.value = difficultyTime.medium;
+                    break;
+                case "难":
+                    baseTime = difficultyTime.hard;
+                    customTime.value = difficultyTime.hard;
+                    break;
+                default:
+                    alert("输入错误，默认选择中等难度（20秒）");
+                    baseTime = 20;
+                    customTime.value = 20;
+            }
+            remainingTime = baseTime; // 同步剩余时间
+            timerDisplay.textContent = remainingTime;
+        });
+
+        // 4. 修改计时器默认时长
+        setTimerBtn.addEventListener("click", () => {
+            const newTime = Number(customTime.value);
+            if (newTime < 1) {
+                alert("时长不能小于1秒！");
+                return;
+            }
+            baseTime = newTime;
+            remainingTime = newTime;
+            timerDisplay.textContent = remainingTime;
+            // 如果正在刷题，重置计时器
+            if (isRunning) {
+                clearInterval(timerInterval);
+                startTimer();
+            }
+        });
+
+        // 5. 生成随机题目
+        function generateRandomQuestion() {
+            const randomIndex = Math.floor(Math.random() * percentFractionMap.length);
+            const randomType = Math.random() > 0.5; // 随机出题类型：百分比转分数/分数转百分比
+            
+            const data = percentFractionMap[randomIndex];
+            if (randomType) {
+                // 题目：百分比 -> 分数
+                currentQuestion = {
+                    question: `${data.percent} = ?`,
+                    answer: data.fraction,
+                    type: "percentToFraction"
+                };
+            } else {
+                // 题目：分数 -> 百分比
+                currentQuestion = {
+                    question: `${data.fraction} = ?`,
+                    answer: data.percent,
+                    type: "fractionToPercent"
+                };
+            }
+            questionText.textContent = currentQuestion.question;
+            resultTip.textContent = "";
+            answerInput.value = "";
+        }
+
+        // 6. 计时器核心逻辑（修复负数问题）
+        function startTimer() {
+            clearInterval(timerInterval); // 清除旧计时器
+            remainingTime = baseTime;     // 重置为基准时长
+            timerDisplay.textContent = remainingTime;
+            
+            timerInterval = setInterval(() => {
+                remainingTime--;
+                // 防止剩余时间小于0
+                if (remainingTime < 0) remainingTime = 0;
+                timerDisplay.textContent = remainingTime;
+
+                // 超时判定：默认错误，自动提交
+                if (remainingTime <= 0) {
+                    clearInterval(timerInterval);
+                    resultTip.textContent = `超时！正确答案是：${currentQuestion.answer}`;
+                    resultTip.className = "result-tip wrong";
+                    isRunning = false;
+                    // 禁用提交，启用下一题
+                    submitBtn.disabled = true;
+                    nextBtn.disabled = false;
+                    answerInput.disabled = true;
+                }
+            }, 1000);
+        }
+
+        // 7. 开始刷题
+        startBtn.addEventListener("click", () => {
+            if (isRunning) return;
+            
+            isRunning = true;
+            generateRandomQuestion();
+            
+            // 按钮状态切换
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            nextBtn.disabled = true;
+            submitBtn.disabled = false;
+            answerInput.disabled = false;
+            
+            // 启动计时器
+            startTimer();
+        });
+
+        // 8. 停止刷题
+        stopBtn.addEventListener("click", () => {
+            clearInterval(timerInterval);
+            isRunning = false;
+            
+            // 按钮状态重置
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            nextBtn.disabled = true;
+            submitBtn.disabled = true;
+            answerInput.disabled = true;
+            
+            questionText.textContent = "点击「开始刷题」生成题目";
+            resultTip.textContent = "";
+            remainingTime = baseTime; // 重置剩余时间
+            timerDisplay.textContent = remainingTime;
+        });
+
+        // 9. 提交答案（直填式验证）
+        submitBtn.addEventListener("click", () => {
+            clearInterval(timerInterval); // 提交后停止计时
+            const userAnswer = answerInput.value.trim();
+            
+            // 答案验证（兼容大小写/空格）
+            if (userAnswer === currentQuestion.answer) {
+                resultTip.textContent = "✅ 回答正确！";
+                resultTip.className = "result-tip correct";
+            } else {
+                resultTip.textContent = `❌ 回答错误！正确答案：${currentQuestion.answer}`;
+                resultTip.className = "result-tip wrong";
+            }
+            
+            // 按钮状态切换
+            submitBtn.disabled = true;
+            nextBtn.disabled = false;
+            isRunning = false;
+        });
+
+        // 10. 下一题（核心修复：重置所有计时状态）
+        nextBtn.addEventListener("click", () => {
+            // 重置状态
+            nextBtn.disabled = true;
+            resultTip.textContent = "";
+            answerInput.disabled = false;
+            submitBtn.disabled = false;
+            isRunning = true;
+            
+            // 重置剩余时间为基准时长
+            remainingTime = baseTime;
+            timerDisplay.textContent = remainingTime;
+            
+            // 生成新题+重启计时器
+            generateRandomQuestion();
+            startTimer();
+        });
+    </script>
+</body>
+</html>
