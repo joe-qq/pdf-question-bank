@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>资料分析速算训练工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #f8fafc;
+        }
+        .card {
+            transition: all 0.3s ease;
+        }
+        .card:hover {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        .btn-hover {
+            transition: all 0.2s ease;
+        }
+        .btn-hover:hover {
+            transform: scale(1.05);
+        }
+        .active-tab {
+            background-color: #3b82f6;
+            color: white;
+        }
+        .correct {
+            background-color: #dcfce7;
+            border-color: #22c55e;
+        }
+        .wrong {
+            background-color: #fee2e2;
+            border-color: #ef4444;
+        }
+        .option-btn {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .option-btn:hover {
+            background-color: #e0e7ff;
+        }
+        .option-selected {
+            background-color: #bfdbfe;
+            border-color: #3b82f6;
+        }
+        .option-correct {
+            background-color: #dcfce7;
+            border-color: #22c55e;
+        }
+        .option-wrong {
+            background-color: #fee2e2;
+            border-color: #ef4444;
+        }
+        .skill-card {
+            border-left: 4px solid #3b82f6;
+        }
+        .skill-subtitle {
+            color: #1d4ed8;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 min-h-screen">
+    <!-- 顶部导航 -->
+    <header class="bg-white shadow-md sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center">
+            <h1 class="text-2xl font-black text-blue-600 flex items-center mb-4 md:mb-0">
+                <i class="fa-solid fa-calculator mr-2"></i>
+                资料分析速算训练工具
+            </h1>
+            <div class="flex flex-wrap gap-2 justify-center">
+                <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium flex items-center">
+                    <i class="fa-solid fa-star text-yellow-500 mr-1"></i>
+                    已答题数: <span id="total-count">0</span>
+                </span>
+                <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium flex items-center">
+                    <i class="fa-solid fa-check text-green-600 mr-1"></i>
+                    正确率: <span id="accuracy">0</span>%
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="container mx-auto px-4 py-8">
+        <!-- 题型选择区 -->
+        <section class="mb-8">
+            <div class="bg-white rounded-xl p-6 shadow-md">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">选择训练题型</h2>
+                <div class="flex flex-wrap gap-3">
+                    <button class="tab-btn active-tab px-4 py-2 rounded-full text-sm font-medium btn-hover" data-type="all">全部题型</button>
+                    <!-- 原有题型 -->
+                    <button class="tab-btn bg-gray-100 px-4 py-2 rounded-full text-sm font-medium btn-hover" data-type="multiply15">×1.5 题型</button>
+                    <button class="tab-btn bg-gray-100 px-4 py-2 rounded-full text-sm font-medium btn-hover" data-type="multiply11">×1.1/×0.9 题型</button>
+                    <button class="tab-btn bg-gray-100 px-4 py-2 rounded-full text-sm font-medium btn-hover" data-type="divide">÷5/25/125 题型</button>
+                    <button class="tab-btn bg-gray-100 px-4 py-2 rounded-full text-sm font-medium btn-hover" data-type="baihua">百化分 题型</button>
+                    <!-- 新增题型 -->
+                    <button class="tab-btn bg-gray-100 px-4 py-2 rounded-full text-sm font-medium btn-hover" data-type="add-high">加法高位叠加</button>
+                    <button class="tab-btn bg-gray-100 px-4 py-2 rounded-full text-sm font-medium btn-hover" data-type="sub-line">减法划线减法</button>
+                    <button class="tab-btn bg-gray-100 px-4 py-2 rounded-full text-sm font-medium btn-hover" data-type="multiply-two">两位数乘法</button>
+                    <button class="tab-btn bg-gray-100 px-4 py-2 rounded-full text-sm font-medium btn-hover" data-type="cut-divide">截位直除</button>
+                    <button class="tab-btn bg-gray-100 px-4 py-2 rounded-full text-sm font-medium btn-hover" data-type="fraction-compare">分数比较</button>
+                </div>
+                <div class="mt-6 flex gap-3">
+                    <button id="generate-btn" class="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium btn-hover flex items-center">
+                        <i class="fa-solid fa-refresh mr-2"></i> 生成新题目
+                    </button>
+                    <button id="reset-btn" class="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-medium btn-hover flex items-center">
+                        <i class="fa-solid fa-eraser mr-2"></i> 重置统计
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 答题区域 -->
+        <section class="mb-8">
+            <div class="bg-white rounded-xl p-8 shadow-md card">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800">当前题目</h2>
+                    <span id="question-type-tag" class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">×1.5 题型</span>
+                </div>
+                
+                <div class="text-3xl font-bold text-center mb-8" id="question-content">
+                    120 × 1.5 = ?
+                </div>
+                
+                <!-- 普通答题输入框区域 -->
+                <div id="input-answer-section" class="flex flex-col md:flex-row gap-4 justify-center items-center mb-6">
+                    <input 
+                        type="text" 
+                        id="answer-input" 
+                        placeholder="请输入答案（小数用.表示，分数比较题型输入选项字母A/B/C/D）" 
+                        class="w-full md:w-1/3 px-4 py-3 border border-gray-300 rounded-lg text-xl text-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                    <button id="submit-btn" class="bg-green-600 text-white px-8 py-3 rounded-lg font-medium btn-hover flex items-center">
+                        <i class="fa-solid fa-check mr-2"></i> 提交答案
+                    </button>
+                </div>
+                
+                <!-- 选择题型选项区域（用于分数比较、百化分） -->
+                <div id="option-answer-section" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div id="option-a" class="option-btn border border-gray-300 rounded-lg p-4 text-xl text-center hover:bg-blue-50">
+                        A. 
+                    </div>
+                    <div id="option-b" class="option-btn border border-gray-300 rounded-lg p-4 text-xl text-center hover:bg-blue-50">
+                        B. 
+                    </div>
+                    <div id="option-c" class="option-btn border border-gray-300 rounded-lg p-4 text-xl text-center hover:bg-blue-50">
+                        C. 
+                    </div>
+                    <div id="option-d" class="option-btn border border-gray-300 rounded-lg p-4 text-xl text-center hover:bg-blue-50">
+                        D. 
+                    </div>
+                    <button id="submit-option-btn" class="hidden md:col-span-2 bg-green-600 text-white px-8 py-3 rounded-lg font-medium btn-hover flex items-center justify-center mt-4">
+                        <i class="fa-solid fa-check mr-2"></i> 提交选择
+                    </button>
+                </div>
+                
+                <!-- 结果反馈 -->
+                <div id="result-feedback" class="hidden p-4 rounded-lg border mb-6 text-center text-xl font-medium">
+                    回答正确！✅
+                </div>
+                
+                <!-- 解析区域 -->
+                <div id="analysis-section" class="hidden bg-gray-50 p-6 rounded-lg">
+                    <h3 class="text-xl font-bold text-gray-800 mb-3">解题解析</h3>
+                    <p class="text-lg text-gray-700" id="analysis-content">
+                        根据×1.5技巧：一个数×1.5 = 这个数 + 本身的一半<br>
+                        120 + 60 = 180
+                    </p>
+                </div>
+                
+                <div class="flex justify-center mt-8">
+                    <button id="next-btn" class="hidden bg-blue-600 text-white px-6 py-3 rounded-lg font-medium btn-hover flex items-center">
+                        <i class="fa-solid fa-arrow-right mr-2"></i> 下一题
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 速算技巧参考（完善版） -->
+        <section>
+            <div class="bg-white rounded-xl p-6 shadow-md">
+                <h2 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
+                    <i class="fa-solid fa-bookmark text-yellow-500 mr-2"></i>
+                    完整速算技巧参考
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- 加法技巧 -->
+                    <div class="bg-gray-50 p-4 rounded-lg skill-card">
+                        <h3 class="font-bold text-blue-700 mb-2 text-lg">一、加法：高位叠加</h3>
+                        <p class="skill-subtitle mb-1">核心原则：</p>
+                        <ul class="list-disc pl-5 text-gray-700 mb-2">
+                            <li>两位数加减必须口算</li>
+                            <li>高位叠加、不列式、少动笔</li>
+                            <li>列出千百十个位，根据选项排除，减少计算量</li>
+                            <li>材料数据太多时，可分组计算</li>
+                        </ul>
+                        <p class="text-sm text-gray-600 mt-1">例：347 + 562 = ? → 百位3+5=8，十位4+6=10，个位7+2=9 → 800+100+9=909</p>
+                    </div>
+
+                    <!-- 减法技巧 -->
+                    <div class="bg-gray-50 p-4 rounded-lg skill-card">
+                        <h3 class="font-bold text-blue-700 mb-2 text-lg">二、减法：划线减法</h3>
+                        <p class="skill-subtitle mb-1">核心原则：</p>
+                        <ul class="list-disc pl-5 text-gray-700 mb-2">
+                            <li>插入临界值简化计算</li>
+                            <li>以好算、少借位为前提</li>
+                            <li>普通数值采用划线方法快速计算</li>
+                        </ul>
+                        <p class="text-sm text-gray-600 mt-1">例：521 - 376 = ? → 临界值400，521-400=121，121+24=145</p>
+                    </div>
+
+                    <!-- 乘法技巧 -->
+                    <div class="bg-gray-50 p-4 rounded-lg skill-card">
+                        <h3 class="font-bold text-blue-700 mb-2 text-lg">三、乘法：化乘为加/凑整/两位数乘法</h3>
+                        <p class="skill-subtitle mb-1">1. 两位数乘个位数：</p>
+                        <ul class="list-disc pl-5 text-gray-700 mb-2">
+                            <li>尾数固定，分步计算</li>
+                            <li>个十百位分别相乘，从高位到低位依次计算</li>
+                        </ul>
+                        <p class="skill-subtitle mb-1">2. 两位数乘两位数（前前后后、里里外外）：</p>
+                        <ul class="list-disc pl-5 text-gray-700 mb-2">
+                            <li>前前：千百位相乘</li>
+                            <li>后后：个十位相乘</li>
+                            <li>里里外外：十位数交叉相乘</li>
+                        </ul>
+                        <p class="text-sm text-gray-600 mt-1">例：34×56 = ? → 前前3×5=15，里里外外3×6+4×5=38，后后4×6=24 → 1500+380+24=1904</p>
+                    </div>
+
+                    <!-- 截位直除技巧 -->
+                    <div class="bg-gray-50 p-4 rounded-lg skill-card">
+                        <h3 class="font-bold text-blue-700 mb-2 text-lg">四、截位直除</h3>
+                        <p class="skill-subtitle mb-1">核心原则：</p>
+                        <ul class="list-disc pl-5 text-gray-700 mb-2">
+                            <li>一步除法：只截分母</li>
+                            <li>多步除法：分子分母都截，截完约分</li>
+                            <li>选项差距大：截2位（首位不同/首位相同但第二位差值>首位）</li>
+                            <li>选项差距小：截3位（首位相同且第二位差值≤首位）</li>
+                            <li>量级差异：选项存在10/100倍关系时，保留小数点位置</li>
+                        </ul>
+                        <p class="text-sm text-gray-600 mt-1">例：1234÷567 ≈ ?（选项差距大）→ 截2位1200÷57≈2.11</p>
+                    </div>
+
+                    <!-- 分数比较技巧 -->
+                    <div class="bg-gray-50 p-4 rounded-lg skill-card">
+                        <h3 class="font-bold text-blue-700 mb-2 text-lg">五、分数比较</h3>
+                        <p class="skill-subtitle mb-1">1. 一大一小：</p>
+                        <p class="text-gray-700 mb-2">分子大、分母小的分数大（分钱原则：钱多事少）</p>
+                        <p class="skill-subtitle mb-1">2. 同大同小：</p>
+                        <ul class="list-disc pl-5 text-gray-700 mb-2">
+                            <li>竖着直接除：一眼能秒就竖着算倍数</li>
+                            <li>横向看速度：分子增长快则分子大的分数大；分母增长快则分母大的分数小</li>
+                            <li>先竖向后横向，提高效率</li>
+                        </ul>
+                        <p class="text-sm text-gray-600 mt-1">例：比较 3/7 和 5/9 → 横向看：分子3→5增长66.7%，分母7→9增长28.6%，分子快→5/9更大</p>
+                    </div>
+
+                    <!-- 原有技巧整合 -->
+                    <div class="bg-gray-50 p-4 rounded-lg skill-card">
+                        <h3 class="font-bold text-blue-700 mb-2 text-lg">六、其他常用技巧</h3>
+                        <div class="mb-2">
+                            <p class="skill-subtitle mb-1">1. ×1.5 技巧：</p>
+                            <p class="text-gray-700 mb-1">一个数×1.5 = 这个数 + 本身的一半（例：124×1.5=124+62=186）</p>
+                        </div>
+                        <div class="mb-2">
+                            <p class="skill-subtitle mb-1">2. ×1.1/×0.9 技巧：</p>
+                            <p class="text-gray-700 mb-1">×1.1=错位相加 | ×0.9=错位相减（例：124×1.1=124+12.4=136.4）</p>
+                        </div>
+                        <div class="mb-2">
+                            <p class="skill-subtitle mb-1">3. ÷5/25/125 技巧：</p>
+                            <p class="text-gray-700 mb-1">÷5=×2移1位 | ÷25=×4移2位 | ÷125=×8移3位（例：24÷25=96÷100=0.96）</p>
+                        </div>
+                        <div>
+                            <p class="skill-subtitle mb-1">4. 百化分 技巧：</p>
+                            <p class="text-gray-700"..>①不用背，我都会：50% = 1/2 | 33.3% = 1/3 |25% = 1/4 | 20% = 1/5 | 10% = 1/10</p>
+                            <p class="text-gray-700">②记住（1/8 ~ 1/13），加和为20 （整数部分+分母）：12.5% = 1/8 | 11.1% = 1/9 | 9.1% = 1/11 | 8.3% = 1/12 | 7.7% = 1/13</p>
+                            <p class="text-gray-700">③记住（16、6）和（14、7） 互换的两对： 16.7% = 1/6 | 6.25% = 1/16 | 14.3% = 1/7 | 7.1% = 1/14</p>
+                            <p class="text-gray-700">④记住 （17、18、19），5.963--等差数列0.3： 5.9% = 1/17 | 5.6% = 1/18 | 5.3% = 1 /19</p>
+                            <p class="text-gray-700">⑤特殊值，就记住： 6.7% = 1/15</p>
+                            <p class="text-gray-700">1/6≈16.7% | 1/7≈14.3% | 1/8≈12.5% | 1/9≈11.1% | 增长量=现期÷(n+1)（r=1/n）</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="bg-gray-800 text-white py-6 mt-12">
+        <div class="container mx-auto px-4 text-center">
+            <p>© 2025 资料分析速算训练工具 | 基于完整速算技巧体系开发</p>
+        </div>
+    </footer>
+
+    <script>
+        // 全局变量
+        let currentQuestion = {
+            type: 'multiply15',
+            content: '120 × 1.5 = ?',
+            answer: 180,
+            analysis: '根据×1.5技巧：一个数×1.5 = 这个数 + 本身的一半<br>120 + 60 = 180',
+            options: null,
+            correctOption: null
+        };
+        let totalAnswered = 0;
+        let totalCorrect = 0;
+        let currentTab = 'all';
+        let selectedOption = null;
+
+        // DOM 元素缓存
+        const DOM = {
+            tabBtns: document.querySelectorAll('.tab-btn'),
+            questionContent: document.getElementById('question-content'),
+            questionTypeTag: document.getElementById('question-type-tag'),
+            answerInput: document.getElementById('answer-input'),
+            submitBtn: document.getElementById('submit-btn'),
+            generateBtn: document.getElementById('generate-btn'),
+            resetBtn: document.getElementById('reset-btn'),
+            resultFeedback: document.getElementById('result-feedback'),
+            analysisSection: document.getElementById('analysis-section'),
+            analysisContent: document.getElementById('analysis-content'),
+            nextBtn: document.getElementById('next-btn'),
+            totalCount: document.getElementById('total-count'),
+            accuracy: document.getElementById('accuracy'),
+            inputAnswerSection: document.getElementById('input-answer-section'),
+            optionAnswerSection: document.getElementById('option-answer-section'),
+            options: [
+                document.getElementById('option-a'),
+                document.getElementById('option-b'),
+                document.getElementById('option-c'),
+                document.getElementById('option-d')
+            ],
+            submitOptionBtn: document.getElementById('submit-option-btn')
+        };
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            updateStats();
+            // 绑定事件
+            DOM.tabBtns.forEach(btn => btn.addEventListener('click', switchTab));
+            DOM.generateBtn.addEventListener('click', generateNewQuestion);
+            DOM.submitBtn.addEventListener('click', checkAnswer);
+            DOM.resetBtn.addEventListener('click', resetStatistics);
+            DOM.nextBtn.addEventListener('click', generateNewQuestion);
+            
+            // 选项点击事件
+            DOM.options.forEach(option => {
+                option.addEventListener('click', selectOption);
+            });
+            DOM.submitOptionBtn.addEventListener('click', checkOptionAnswer);
+            
+            // 回车提交
+            DOM.answerInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && DOM.inputAnswerSection.style.display !== 'none') checkAnswer();
+            });
+        });
+
+        // 切换题型标签
+        function switchTab(e) {
+            DOM.tabBtns.forEach(btn => {
+                btn.classList.remove('active-tab');
+                btn.classList.add('bg-gray-100');
+            });
+            e.target.classList.add('active-tab');
+            e.target.classList.remove('bg-gray-100');
+            currentTab = e.target.getAttribute('data-type');
+            generateNewQuestion();
+        }
+
+        // 生成新题目
+        function generateNewQuestion() {
+            // 重置状态
+            selectedOption = null;
+            DOM.answerInput.value = '';
+            DOM.resultFeedback.classList.add('hidden');
+            DOM.analysisSection.classList.add('hidden');
+            DOM.nextBtn.classList.add('hidden');
+            DOM.submitBtn.disabled = false;
+            DOM.submitBtn.classList.remove('opacity-50');
+            DOM.submitOptionBtn.disabled = false;
+            DOM.submitOptionBtn.classList.remove('opacity-50');
+            DOM.submitOptionBtn.classList.add('hidden');
+            
+            // 重置选项
+            DOM.options.forEach(option => {
+                option.classList.remove('option-selected', 'option-correct', 'option-wrong');
+                option.style.pointerEvents = 'auto';
+            });
+            
+            // 选择题型列表
+            let questionTypes = [];
+            if (currentTab === 'all') {
+                questionTypes = [
+                    'multiply15', 'multiply11', 'multiply09', 'divide5', 'divide25', 'divide125', 'baihua',
+                    'add-high', 'sub-line', 'multiply-two', 'cut-divide', 'fraction-compare'
+                ];
+            } else if (currentTab === 'divide') {
+                questionTypes = ['divide5', 'divide25', 'divide125'];
+            } else if (currentTab === 'multiply11') {
+                questionTypes = ['multiply11', 'multiply09'];
+            } else {
+                questionTypes = [currentTab];
+            }
+            
+            // 随机生成题目
+            const randomType = questionTypes[Math.floor(Math.random() * questionTypes.length)];
+            generateQuestionByType(randomType);
+        }
+
+        // 根据题型生成题目
+        function generateQuestionByType(type) {
+            let content, answer, analysis, tagText, options, correctOption;
+            
+            switch(type) {
+                // 原有题型保持不变
+                case 'multiply15':
+                    DOM.inputAnswerSection.style.display = 'flex';
+                    DOM.optionAnswerSection.style.display = 'none';
+                    const num15 = getRandomInt(100, 500);
+                    content = `${num15} × 1.5 = ?`;
+                    answer = num15 * 1.5;
+                    analysis = `根据×1.5技巧：一个数×1.5 = 这个数 + 本身的一半<br>${num15} + ${num15/2} = ${answer}`;
+                    tagText = '×1.5 题型';
+                    break;
+                
+                case 'multiply11':
+                    DOM.inputAnswerSection.style.display = 'flex';
+                    DOM.optionAnswerSection.style.display = 'none';
+                    const num11 = getRandomInt(100, 500);
+                    content = `${num11} × 1.1 = ?`;
+                    answer = num11 * 1.1;
+                    analysis = `根据×1.1技巧：一个数×1.1 = 这个数错位相加<br>${num11} + ${num11/10} = ${answer}`;
+                    tagText = '×1.1 题型';
+                    break;
+                
+                case 'multiply09':
+                    DOM.inputAnswerSection.style.display = 'flex';
+                    DOM.optionAnswerSection.style.display = 'none';
+                    const num09 = getRandomInt(100, 500);
+                    content = `${num09} × 0.9 = ?`;
+                    answer = num09 * 0.9;
+                    analysis = `根据×0.9技巧：一个数×0.9 = 这个数错位相减<br>${num09} - ${num09/10} = ${answer}`;
+                    tagText = '×0.9 题型';
+                    break;
+                
+                case 'divide5':
+                    DOM.inputAnswerSection.style.display = 'flex';
+                    DOM.optionAnswerSection.style.display = 'none';
+                    const num5 = getRandomInt(50, 1000);
+                    content = `${num5} ÷ 5 = ?`;
+                    answer = num5 / 5;
+                    analysis = `根据÷5技巧：一个数÷5 = 这个数×2，小数点移一位<br>${num5} × 2 = ${num5*2} → 小数点移一位 = ${answer}`;
+                    tagText = '÷5 题型';
+                    break;
+                
+                case 'divide25':
+                    DOM.inputAnswerSection.style.display = 'flex';
+                    DOM.optionAnswerSection.style.display = 'none';
+                    const num25 = getRandomInt(25, 1000);
+                    content = `${num25} ÷ 25 = ?`;
+                    answer = num25 / 25;
+                    analysis = `根据÷25技巧：一个数÷25 = 这个数×4，小数点移两位<br>${num25} × 4 = ${num25*4} → 小数点移两位 = ${answer}`;
+                    tagText = '÷25 题型';
+                    break;
+                
+                case 'divide125':
+                    DOM.inputAnswerSection.style.display = 'flex';
+                    DOM.optionAnswerSection.style.display = 'none';
+                    const num125 = getRandomInt(125, 1000);
+                    content = `${num125} ÷ 125 = ?`;
+                    answer = num125 / 125;
+                    analysis = `根据÷125技巧：一个数÷125 = 这个数×8，小数点移三位<br>${num125} × 8 = ${num125*8} → 小数点移三位 = ${answer}`;
+                    tagText = '÷125 题型';
+                    break;
+                
+                case 'baihua':
+                    DOM.inputAnswerSection.style.display = 'none';
+                    DOM.optionAnswerSection.style.display = 'grid';
+                    const baihuaMap = [
+                        { frac: '1/6', percent: '16.7%', n: 6 },
+                        { frac: '1/7', percent: '14.3%', n: 7 },
+                        { frac: '1/8', percent: '12.5%', n: 8 },
+                        { frac: '1/9', percent: '11.1%', n: 9 },
+                        { frac: '1/10', percent: '10%', n: 10 },
+                        { frac: '1/11', percent: '9.1%', n: 11 },
+                        { frac: '1/12', percent: '8.3%', n: 12 },
+                        { frac: '1/13', percent: '7.7%', n: 13 },
+                        { frac: '1/14', percent: '7.1%', n: 14 },
+                        { frac: '1/15', percent: '6.7%', n: 15 }
+                    ];
+                    const randomBaihua = baihuaMap[Math.floor(Math.random() * baihuaMap.length)];
+                    const baihuaNum = getRandomInt(1000, 50000);
+                    content = `现期量${baihuaNum}，增长率${randomBaihua.percent}，求增长量 = ?`;
+                    answer = parseFloat((baihuaNum / (randomBaihua.n + 1)).toFixed(2));
+                    analysis = `根据百化分技巧：增长率${randomBaihua.percent}≈${randomBaihua.frac}，增长量=现期量÷(n+1)<br>${baihuaNum} ÷ (${randomBaihua.n} + 1) = ${baihuaNum} ÷ ${randomBaihua.n + 1} ≈ ${answer}`;
+                    tagText = '百化分 题型';
+                    options = generateBaihuaOptions(answer);
+                    const optionKeys = ['A', 'B', 'C', 'D'];
+                    correctOption = optionKeys[Math.floor(Math.random() * 4)];
+                    // 设置选项
+                    switch(correctOption) {
+                        case 'A':
+                            DOM.options[0].innerHTML = `A. ${answer}`;
+                            DOM.options[1].innerHTML = `B. ${options[0]}`;
+                            DOM.options[2].innerHTML = `C. ${options[1]}`;
+                            DOM.options[3].innerHTML = `D. ${options[2]}`;
+                            break;
+                        case 'B':
+                            DOM.options[0].innerHTML = `A. ${options[0]}`;
+                            DOM.options[1].innerHTML = `B. ${answer}`;
+                            DOM.options[2].innerHTML = `C. ${options[1]}`;
+                            DOM.options[3].innerHTML = `D. ${options[2]}`;
+                            break;
+                        case 'C':
+                            DOM.options[0].innerHTML = `A. ${options[0]}`;
+                            DOM.options[1].innerHTML = `B. ${options[1]}`;
+                            DOM.options[2].innerHTML = `C. ${answer}`;
+                            DOM.options[3].innerHTML = `D. ${options[2]}`;
+                            break;
+                        case 'D':
+                            DOM.options[0].innerHTML = `A. ${options[0]}`;
+                            DOM.options[1].innerHTML = `B. ${options[1]}`;
+                            DOM.options[2].innerHTML = `C. ${options[2]}`;
+                            DOM.options[3].innerHTML = `D. ${answer}`;
+                            break;
+                    }
+                    break;
+
+                // 新增题型：加法高位叠加
+                case 'add-high':
+                    DOM.inputAnswerSection.style.display = 'flex';
+                    DOM.optionAnswerSection.style.display = 'none';
+                    const addNum1 = getRandomInt(100, 999);
+                    const addNum2 = getRandomInt(100, 999);
+                    content = `${addNum1} + ${addNum2} = ?`;
+                    answer = addNum1 + addNum2;
+                    // 高位叠加解析
+                    const addH = Math.floor(addNum1/100) + Math.floor(addNum2/100);
+                    const addT = Math.floor((addNum1%100)/10) + Math.floor((addNum2%100)/10);
+                    const addU = (addNum1%10) + (addNum2%10);
+                    analysis = `根据加法高位叠加技巧：<br>百位：${Math.floor(addNum1/100)} + ${Math.floor(addNum2/100)} = ${addH}<br>十位：${Math.floor((addNum1%100)/10)} + ${Math.floor((addNum2%100)/10)} = ${addT}<br>个位：${addNum1%10} + ${addNum2%10} = ${addU}<br>总和：${addH*100 + addT*10 + addU} = ${answer}`;
+                    tagText = '加法高位叠加';
+                    break;
+
+                // 新增题型：减法划线减法
+                case 'sub-line':
+                    DOM.inputAnswerSection.style.display = 'flex';
+                    DOM.optionAnswerSection.style.display = 'none';
+                    let subNum1 = getRandomInt(300, 999);
+                    let subNum2 = getRandomInt(100, subNum1-10);
+                    // 插入临界值
+                    const critical = Math.ceil(subNum2/100)*100;
+                    content = `${subNum1} - ${subNum2} = ?`;
+                    answer = subNum1 - subNum2;
+                    const step1 = subNum1 - critical;
+                    const step2 = critical - subNum2;
+                    analysis = `根据减法划线技巧（插入临界值${critical}）：<br>第一步：${subNum1} - ${critical} = ${step1}<br>第二步：${critical} - ${subNum2} = ${step2}<br>总和：${step1} + ${step2} = ${answer}`;
+                    tagText = '减法划线减法';
+                    break;
+
+                // 新增题型：两位数乘法（前前后后里里外外）
+                case 'multiply-two':
+                    DOM.inputAnswerSection.style.display = 'flex';
+                    DOM.optionAnswerSection.style.display = 'none';
+                    const twoNum1 = getRandomInt(10, 99);
+                    const twoNum2 = getRandomInt(10, 99);
+                    content = `${twoNum1} × ${twoNum2} = ?`;
+                    answer = twoNum1 * twoNum2;
+                    // 前前后后里里外外解析
+                    const t1h = Math.floor(twoNum1/10);
+                    const t1l = twoNum1%10;
+                    const t2h = Math.floor(twoNum2/10);
+                    const t2l = twoNum2%10;
+                    const front = t1h * t2h;
+                    const innerOuter = t1h*t2l + t1l*t2h;
+                    const back = t1l * t2l;
+                    analysis = `根据两位数乘法技巧（前前后后、里里外外）：<br>前前（千百位）：${t1h}×${t2h} = ${front} → ${front*100}<br>里里外外（十位）：${t1h}×${t2l} + ${t1l}×${t2h} = ${innerOuter} → ${innerOuter*10}<br>后后（个位）：${t1l}×${t2l} = ${back}<br>总和：${front*100} + ${innerOuter*10} + ${back} = ${answer}`;
+                    tagText = '两位数乘法';
+                    break;
+
+                // 新增题型：截位直除
+                case 'cut-divide':
+                    DOM.inputAnswerSection.style.display = 'flex';
+                    DOM.optionAnswerSection.style.display = 'none';
+                    const divideNum1 = getRandomInt(1000, 9999);
+                    const divideNum2 = getRandomInt(100, 999);
+                    // 判断选项差距（默认按差距大处理，截2位）
+                    content = `${divideNum1} ÷ ${divideNum2} ≈ ?（选项差距大，截2位）`;
+                    const cutNum1 = Math.round(divideNum1/100)*100; // 截2位
+                    const cutNum2 = Math.round(divideNum2/10)*10; // 截2位
+                    answer = parseFloat((divideNum1 / divideNum2).toFixed(2));
+                    const cutAnswer = parseFloat((cutNum1 / cutNum2).toFixed(2));
+                    analysis = `根据截位直除技巧（一步除法只截分母，选项差距大截2位）：<br>原式：${divideNum1} ÷ ${divideNum2} ≈ ${answer}<br>截位后：${cutNum1} ÷ ${cutNum2} ≈ ${cutAnswer}<br>估算值与真实值误差在可接受范围`;
+                    tagText = '截位直除';
+                    break;
+
+                // 新增题型：分数比较（选择题）
+                case 'fraction-compare':
+                    DOM.inputAnswerSection.style.display = 'none';
+                    DOM.optionAnswerSection.style.display = 'grid';
+                    // 生成4个分数
+                    const fractions = [
+                        { num: getRandomInt(10, 99), den: getRandomInt(10, 99) },
+                        { num: getRandomInt(10, 99), den: getRandomInt(10, 99) },
+                        { num: getRandomInt(10, 99), den: getRandomInt(10, 99) },
+                        { num: getRandomInt(10, 99), den: getRandomInt(10, 99) }
+                    ];
+                    // 计算分数值并排序
+                    const fracValues = fractions.map(f => f.num / f.den);
+                    const maxIdx = fracValues.indexOf(Math.max(...fracValues));
+                    answer = fractions[maxIdx].num / fractions[maxIdx].den;
+                    // 构建题目和选项
+                    content = `以下分数中最大的是？`;
+                    DOM.options[0].innerHTML = `A. ${fractions[0].num}/${fractions[0].den} ≈ ${fracValues[0].toFixed(2)}`;
+                    DOM.options[1].innerHTML = `B. ${fractions[1].num}/${fractions[1].den} ≈ ${fracValues[1].toFixed(2)}`;
+                    DOM.options[2].innerHTML = `C. ${fractions[2].num}/${fractions[2].den} ≈ ${fracValues[2].toFixed(2)}`;
+                    DOM.options[3].innerHTML = `D. ${fractions[3].num}/${fractions[3].den} ≈ ${fracValues[3].toFixed(2)}`;
+                    correctOption = String.fromCharCode(65 + maxIdx); // A/B/C/D
+                    // 生成解析
+                    analysis = `根据分数比较技巧（先横向看速度）：<br>`;
+                    for(let i=0; i<fractions.length; i++){
+                        analysis += `${String.fromCharCode(65+i)}. ${fractions[i].num}/${fractions[i].den} ≈ ${fracValues[i].toFixed(2)}<br>`;
+                    }
+                    analysis += `最大分数为 ${correctOption}，对应值 ≈ ${answer.toFixed(2)}`;
+                    tagText = '分数比较';
+                    break;
+            }
+            
+            // 更新当前题目信息
+            currentQuestion = {
+                type: type,
+                content: content,
+                answer: answer,
+                analysis: analysis,
+                options: options,
+                correctOption: correctOption
+            };
+            
+            // 更新页面显示
+            DOM.questionContent.textContent = content;
+            DOM.questionTypeTag.textContent = tagText;
+            DOM.questionTypeTag.className = `bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium`;
+            
+            // 聚焦输入框
+            if (DOM.inputAnswerSection.style.display !== 'none') {
+                DOM.answerInput.focus();
+            }
+        }
+
+        // 生成百化分干扰选项
+        function generateBaihuaOptions(correctAnswer) {
+            const options = [];
+            for (let i = 0; i < 3; i++) {
+                let wrongAnswer;
+                do {
+                    const errorRate = (Math.random() * 0.15 + 0.05) * (Math.random() > 0.5 ? 1 : -1);
+                    wrongAnswer = parseFloat((correctAnswer * (1 + errorRate)).toFixed(2));
+                } while (wrongAnswer === correctAnswer || options.includes(wrongAnswer));
+                options.push(wrongAnswer);
+            }
+            return options;
+        }
+
+        // 选择选项
+        function selectOption(e) {
+            DOM.options.forEach(option => {
+                option.classList.remove('option-selected');
+            });
+            e.target.classList.add('option-selected');
+            selectedOption = e.target.id.split('-')[1].toUpperCase();
+            DOM.submitOptionBtn.classList.remove('hidden');
+        }
+
+        // 检查答案
+        function checkAnswer() {
+            const userAnswer = currentQuestion.type === 'fraction-compare' 
+                ? DOM.answerInput.value.trim().toUpperCase()
+                : parseFloat(DOM.answerInput.value);
+            
+            // 验证输入
+            if (currentQuestion.type === 'fraction-compare') {
+                if (!['A', 'B', 'C', 'D'].includes(userAnswer)) {
+                    alert('请输入正确的选项字母（A/B/C/D）！');
+                    DOM.answerInput.focus();
+                    return;
+                }
+            } else if (isNaN(userAnswer)) {
+                alert('请输入有效的数字！');
+                DOM.answerInput.focus();
+                return;
+            }
+            
+            // 判断正确与否
+            let isCorrect;
+            if (currentQuestion.type === 'fraction-compare') {
+                isCorrect = userAnswer === currentQuestion.correctOption;
+            } else {
+                isCorrect = Math.abs(userAnswer - currentQuestion.answer) <= 0.1;
+            }
+            
+            // 更新统计
+            totalAnswered++;
+            if (isCorrect) totalCorrect++;
+            updateStats();
+            
+            // 显示结果
+            DOM.resultFeedback.classList.remove('hidden');
+            if (isCorrect) {
+                DOM.resultFeedback.textContent = currentQuestion.type === 'fraction-compare' 
+                    ? `回答正确！✅ 正确答案：${currentQuestion.correctOption}`
+                    : `回答正确！✅ 正确答案：${currentQuestion.answer}`;
+                DOM.resultFeedback.className = 'p-4 rounded-lg border mb-6 text-center text-xl font-medium correct';
+            } else {
+                DOM.resultFeedback.textContent = currentQuestion.type === 'fraction-compare'
+                    ? `回答错误！❌ 正确答案：${currentQuestion.correctOption}`
+                    : `回答错误！❌ 正确答案：${currentQuestion.answer}`;
+                DOM.resultFeedback.className = 'p-4 rounded-lg border mb-6 text-center text-xl font-medium wrong';
+            }
+            
+            // 显示解析
+            DOM.analysisSection.classList.remove('hidden');
+            DOM.analysisContent.innerHTML = currentQuestion.analysis;
+            
+            // 显示下一题
+            DOM.nextBtn.classList.remove('hidden');
+            
+            // 禁用提交
+            DOM.submitBtn.disabled = true;
+            DOM.submitBtn.classList.add('opacity-50');
+        }
+
+        // 检查选择题答案（兼容原有百化分）
+        function checkOptionAnswer() {
+            if (!selectedOption) {
+                alert('请先选择一个选项！');
+                return;
+            }
+            
+            const isCorrect = selectedOption === currentQuestion.correctOption;
+            
+            // 更新统计
+            totalAnswered++;
+            if (isCorrect) totalCorrect++;
+            updateStats();
+            
+            // 标记选项
+            DOM.options.forEach(option => {
+                const optionKey = option.id.split('-')[1].toUpperCase();
+                if (optionKey === currentQuestion.correctOption) {
+                    option.classList.add('option-correct');
+                } else if (optionKey === selectedOption && !isCorrect) {
+                    option.classList.add('option-wrong');
+                }
+                option.style.pointerEvents = 'none';
+            });
+            
+            // 显示结果
+            DOM.resultFeedback.classList.remove('hidden');
+            if (isCorrect) {
+                DOM.resultFeedback.textContent = `回答正确！✅ 正确答案：${currentQuestion.correctOption}`;
+                DOM.resultFeedback.className = 'p-4 rounded-lg border mb-6 text-center text-xl font-medium correct';
+            } else {
+                DOM.resultFeedback.textContent = `回答错误！❌ 正确答案：${currentQuestion.correctOption}`;
+                DOM.resultFeedback.className = 'p-4 rounded-lg border mb-6 text-center text-xl font-medium wrong';
+            }
+            
+            // 显示解析
+            DOM.analysisSection.classList.remove('hidden');
+            DOM.analysisContent.innerHTML = currentQuestion.analysis;
+            
+            // 显示下一题
+            DOM.nextBtn.classList.remove('hidden');
+            
+            // 禁用提交
+            DOM.submitOptionBtn.disabled = true;
+            DOM.submitOptionBtn.classList.add('opacity-50');
+        }
+
+        // 更新统计
+        function updateStats() {
+            DOM.totalCount.textContent = totalAnswered;
+            const accuracy = totalAnswered === 0 ? 0 : Math.round((totalCorrect / totalAnswered) * 100);
+            DOM.accuracy.textContent = accuracy;
+        }
+
+        // 重置统计
+        function resetStatistics() {
+            totalAnswered = 0;
+            totalCorrect = 0;
+            updateStats();
+            alert('统计数据已重置！');
+        }
+
+        // 生成随机整数
+        function getRandomInt(min, max) {
+            min = Math.ceil(min);
+            max = Math.floor(max);
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+    </script>
+</body>
+</html>
